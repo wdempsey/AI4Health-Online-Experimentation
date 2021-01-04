@@ -25,20 +25,20 @@ library("gamm4")
 ## Modeling available and unavailable data separately
 list_ids = unique(analysis.data$id)
 current_id = list_ids[3]
-availablereward.model <- gamm4(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
+availablereward.model <- gamm(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
                                 variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti + ## Baseline Model
-                                s(acday) + s(acdosage) + s(acengagement) + s(aclocation) + s(acvariation) + ## Treatment model
-                                s(actemp) + s(aclogpresteps) + s(acsqrttotsteps) + s(acprioranti),
-                              random = ~(acengagement | id) + (actemp | id) + (aclogpresteps | id),
+                                s(acday) + s(acdosage) + s(acengagement, by = id) + s(aclocation) + s(acvariation) + ## Treatment model
+                                s(aclogpresteps, by = id) + s(acsqrttotsteps) + s(acprioranti),
+                              # random = ~(acengagement | id) + (actemp | id) + (aclogpresteps | id),
                               data = subset(analysis.data, availability == 1))
 
 summary(availablereward.model$gam)
 
 saveRDS(object = availablereward.model, file = "availablereward.RDS")
 
-unavailablereward.model <- gamm4(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
-                                variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti,
-                              random = ~(engagement | id) + (temperature | id) + (logpresteps | id),
+unavailablereward.model <- gamm(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
+                                variation + s(temperature) + s(logpresteps, by = id) + s(sqrt.totalsteps) + prior.anti,
+                              # random = ~(engagement | id) + (temperature | id) + (logpresteps | id),
                               data = subset(analysis.data, availability == 0))
 
 summary(unavailablereward.model$gam)
@@ -50,9 +50,8 @@ saveRDS(object = unavailablereward.model, file = "unavailablereward.RDS")
 Make a population-level availability model
 that only depends on current state. 
 '
-
-availability.model <- gamm(availability ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
-                                  variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti,
+availability.model <- gamm(availability ~ s(day, by = id) + s(dosage) + engagement + other.location + ## Baseline Model
+                                  variation + s(temperature) + s(logpresteps, by = id) + s(sqrt.totalsteps) + prior.anti,
                                 data = analysis.data, family = binomial)
 
 summary(availability.model$gam)
