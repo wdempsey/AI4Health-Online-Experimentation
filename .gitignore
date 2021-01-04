@@ -11,7 +11,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-data/
+data/*.RDS
+data/*.RData
 downloads/
 eggs/
 .eggs/
