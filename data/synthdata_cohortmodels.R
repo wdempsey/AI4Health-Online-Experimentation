@@ -13,40 +13,50 @@ list_ids = unique(analysis.data$id)
 ## Generate subsets of size 5 and fit models 1-40
 ## Save models as 1-40. We will treat these as cohorts.
 set.seed("1298371")
-group_size = 5
+group_size = 10
 
-for (cohort in 1:22) { 
+## Turn on warnings as catch error
+options(warn=2)
+
+
+for (cohort in 1:11) { 
   print(cohort)
-  subset_ids = (cohort-1)*group_size + 1:5
+  subset_ids = (cohort-1)*group_size + 1:group_size
   #sample(unique(analysis.data$id), size = 5)
-  zeroavailablereward.model <- gamm(zeroreward ~ s(day) + dosage + engagement + other.location + ## Baseline Model
+  zeroavailablereward.model <- gamm(zeroreward ~ day + dosage + engagement + other.location + ## Baseline Model
                                   variation + temperature + s(logpresteps) + sqrt.totalsteps + prior.anti + ## Baseline Model
-                                  s(acday) + acdosage + actemp + acengagement + acvariation + ## Treatment model
-                                  s(aclogpresteps) + acsqrttotsteps + acprioranti,
+                                  acday + acdosage + actemp + acengagement + acvariation + ## Treatment model
+                                  aclogpresteps + acsqrttotsteps + acprioranti,
                                 # random = ~(acengagement | id) + (actemp | id) + (aclogpresteps | id),
                                 family = binomial,
                                 data = subset(analysis.data, availability == 1 & is.element(id, subset_ids)))
   
   saveRDS(object = zeroavailablereward.model, file = paste("zeroavailablereward_cohort_",cohort,".RDS", sep = ""))
   
-  availablereward.model <- gamm(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
-                                  variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti + ## Baseline Model
-                                  s(acday) + s(acdosage) + s(actemp) + s(acengagement) + s(acvariation) + ## Treatment model
-                                  s(aclogpresteps) + s(acsqrttotsteps) + acprioranti,
+  availablereward.model <- gamm(reward ~ s(day) + dosage + engagement + other.location + ## Baseline Model
+                                  variation + temperature + logpresteps + sqrt.totalsteps + prior.anti + ## Baseline Model
+                                  s(acday) + acdosage + actemp + acengagement + acvariation + ## Treatment model
+                                  s(aclogpresteps) + acsqrttotsteps + acprioranti,
                                 # random = ~(acengagement | id) + (actemp | id) + (aclogpresteps | id),
                                 data = subset(analysis.data, availability == 1 & zeroreward == 0 & is.element(id, subset_ids)))
   
   saveRDS(object = availablereward.model, file = paste("availablereward_cohort_",cohort,".RDS", sep = ""))
   
-  zerounavailablereward.model <- gamm(zeroreward ~ s(day) + dosage + engagement + other.location + ## Baseline Model
-                                      variation + temperature + s(logpresteps) + sqrt.totalsteps + prior.anti, ## Baseline Model
-                                    family = binomial,
-                                    data = subset(analysis.data, availability == 0 & is.element(id, subset_ids)))
-  
+  if(cohort == 11){
+    zerounavailablereward.model <- gamm(zeroreward ~ s(day) + dosage + engagement + other.location + ## Baseline Model
+                                          variation + temperature + logpresteps + sqrt.totalsteps + prior.anti, ## Baseline Model
+                                        family = binomial,
+                                        data = subset(analysis.data, availability == 0 & is.element(id, subset_ids)))
+  } else {
+    zerounavailablereward.model <- gamm(zeroreward ~ s(day) + dosage + engagement + other.location + ## Baseline Model
+                                          variation + temperature + s(logpresteps) + sqrt.totalsteps + prior.anti, ## Baseline Model
+                                        family = binomial,
+                                        data = subset(analysis.data, availability == 0 & is.element(id, subset_ids)))
+  }
   saveRDS(object = zerounavailablereward.model, file = paste("zerounavailablereward_cohort_",cohort,".RDS", sep = ""))
   
   unavailablereward.model <- gamm(reward ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
-                                    variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti,
+                                    variation + temperature + s(logpresteps) + sqrt.totalsteps + prior.anti,
                                   # random = ~(engagement | id) + (temperature | id) + (logpresteps | id),
                                   data = subset(analysis.data, availability == 0 & zeroreward == 0 & is.element(id, subset_ids)))
   
@@ -55,7 +65,7 @@ for (cohort in 1:22) {
   
   ## Availability model
   availability.model <- gamm(availability ~ s(day) + s(dosage) + engagement + other.location + ## Baseline Model
-                               variation + s(temperature) + s(logpresteps) + s(sqrt.totalsteps) + prior.anti,
+                               variation + temperature + s(logpresteps) + sqrt.totalsteps + prior.anti,
                              data = subset(analysis.data, is.element(id, subset_ids)), family = binomial)
   
   summary(availability.model$gam)
@@ -69,44 +79,44 @@ for (cohort in 1:22) {
   # Build rest via a sequence of conditional distributions: 
 
   # Engagement indicator
-  engagement.model <- gamm(engagement ~ s(day) + s(dosage) + other.location + s(temperature),
+  engagement.model <- gamm(engagement ~ s(day) + dosage + other.location + temperature,
                            data = subset(analysis.data, is.element(id, subset_ids)), family = binomial)
   
   saveRDS(object = engagement.model, file = paste("engagement_cohort_",cohort,".RDS", sep = ""))
   
   # Variation indicator
-  variation.model <- gamm(variation ~ s(day) + s(dosage) + other.location + 
+  variation.model <- gamm(variation ~ s(day) + dosage + other.location + 
                             s(temperature) + engagement,
                           data = subset(analysis.data, is.element(id, subset_ids)), family = binomial)
   
   saveRDS(object = variation.model, file = paste("variation_cohort_",cohort,".RDS", sep = ""))
   
   ## Log Pre Steps
-  zerologpresteps.model <- gamm(zerologpre ~ s(day) + s(dosage) + other.location + 
-                              s(temperature) + engagement + variation,
+  zerologpresteps.model <- gamm(zerologpre ~ s(day) + dosage + other.location + 
+                              temperature + engagement + variation,
                               family = binomial,
                             data = subset(analysis.data, is.element(id, subset_ids)))
   
   saveRDS(object = zerologpresteps.model, file = paste("zerologpresteps_cohort_",cohort,".RDS", sep = ""))
   
-  logpresteps.model <- gamm(logpresteps ~ s(day) + s(dosage) + other.location + 
+  logpresteps.model <- gamm(logpresteps ~ s(day) + dosage + other.location + 
                               s(temperature) + engagement + variation,
                             data = subset(analysis.data, zerologpre == 0 & is.element(id, subset_ids)))
   
   saveRDS(object = logpresteps.model, file = paste("logpresteps_cohort_",cohort,".RDS", sep = ""))
   
   ## Sqrt total Steps
-  sqrttotalsteps.model <- gamm(sqrt.totalsteps ~ s(day) + s(dosage) + other.location + 
-                                 s(temperature) + engagement + variation + s(logpresteps),
+  sqrttotalsteps.model <- gamm(sqrt.totalsteps ~ s(day) + dosage + other.location + 
+                                 temperature + engagement + variation + s(logpresteps),
                                data = subset(analysis.data, is.element(id, subset_ids)))
   
   saveRDS(object = sqrttotalsteps.model, file = paste("sqrttotalsteps_cohort_",cohort,".RDS", sep = ""))
-  
+   
   ## Prior Antisedentary
-  prioranti.model <- gamm(prior.anti ~ s(day) + s(dosage) + other.location + 
-                            s(temperature) + engagement + variation + s(logpresteps) + s(sqrt.totalsteps),
+  prioranti.model <- gamm(prior.anti ~ day + dosage + other.location + 
+                            temperature + engagement + variation + s(logpresteps) + sqrt.totalsteps,
                           data = subset(analysis.data, is.element(id, subset_ids)), family = binomial)
   
   saveRDS(object = prioranti.model, file = paste("prioranti_cohort_",cohort,".RDS", sep = ""))
 }
-
+ 

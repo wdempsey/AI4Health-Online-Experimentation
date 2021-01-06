@@ -1,5 +1,4 @@
 ## Setup RData files
-
 load("C:/Users/Balthazar/Box/HeartSteps/Walter/data/analysis-data-2.RData")
 pred.data = analysis.data[1,]
 # pred.data = analysis.data[14941,]
@@ -49,7 +48,7 @@ generate_reward_state <- function(input) {
   pred.data$acsqrttotsteps = pred.data$ac * pred.data$sqrt.totalsteps
   pred.data$acprioranti = pred.data$ac * pred.data$prior.anti
   
-  cohort = ceiling(pred.data$id/5)
+  cohort = ceiling(pred.data$id/7)
   # print(paste("Cohort is",cohort))
   
   zeroavailable_reward_model = readRDS(file = paste("zeroavailablereward_cohort_",cohort,".RDS", sep = ""))

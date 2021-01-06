@@ -28,3 +28,7 @@ ggdrive.data = data.frame("id" = analysis.data$id, "day" = analysis.data$day,
                          "temperature" = analysis.data$temperature)
 
 save(ggdrive.data, file = "C:/Users/Balthazar/Box/HeartSteps/Walter/data/ggdrive.RData")
+
+
+init.states = subset(analysis.data, day == 1 & decision.time == 1)
+save(init.states, file = "C:/Users/Balthazar/Box/HeartSteps/Walter/data/initstates.RData")
