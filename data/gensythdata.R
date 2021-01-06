@@ -1,3 +1,16 @@
+## Setup RData files
+
+load("C:/Users/Balthazar/Box/HeartSteps/Walter/data/analysis-data-2.RData")
+pred.data = analysis.data[1,]
+# pred.data = analysis.data[14941,]
+reward = 1
+user_avail = 1
+setwd("./RDS_files/")
+
+## Need gamm4 for generalized additive mixed effects model
+if(!require("gamm4")){install.packages("gamm4")}
+library("gamm4")
+
 # Generative models
 # Inputs: Current State, Action, and Prob
 
@@ -36,20 +49,27 @@ generate_reward_state <- function(input) {
   pred.data$acsqrttotsteps = pred.data$ac * pred.data$sqrt.totalsteps
   pred.data$acprioranti = pred.data$ac * pred.data$prior.anti
   
-  cohort = pred.data$id %% 5 +1
+  cohort = ceiling(pred.data$id/5)
+  # print(paste("Cohort is",cohort))
   
+  zeroavailable_reward_model = readRDS(file = paste("zeroavailablereward_cohort_",cohort,".RDS", sep = ""))
   available_reward_model = readRDS(file = paste("availablereward_cohort_",cohort,".RDS", sep = ""))
+  zerounavailable_reward_model = readRDS(file = paste("zerounavailablereward_cohort_",cohort,".RDS", sep = ""))
   unavailable_reward_model = readRDS(file = paste("unavailablereward_cohort_",cohort,".RDS", sep = ""))
   expit <- function(x) {1/(1+exp(-x))}
   
   if(input$available == 1) {
+    logit_zeroreward = predict(zeroavailable_reward_model$gam, pred.data) 
+    no_reward = rbinom(n=1,size=1, prob = expit(logit_zeroreward))
     mean_reward = predict(available_reward_model$gam, pred.data) 
     sig = sigma(available_reward_model$lme)
-    reward = mean_reward + rnorm(1, mean = 0, sd = sig)
+    reward = (1-no_reward)*(mean_reward + rnorm(1, mean = 0, sd = sig)) + no_reward*log(0.5)
   } else {
+    log_zeroreward = predict(zerounavailable_reward_model$gam, pred.data) 
+    no_reward = rbinom(n=1,size=1, prob = expit(logit_zeroreward))
     mean_reward = predict(unavailable_reward_model$gam, pred.data) 
     sig = sigma(unavailable_reward_model$lme)
-    reward = mean_reward + rnorm(1, mean = 0, sd = sig)
+    reward = (1-no_reward)*(mean_reward + rnorm(1, mean = 0, sd = sig)) + no_reward*log(0.5)
   }
   
   if(pred.data$decision.time > 5) {
@@ -82,13 +102,14 @@ generate_reward_state <- function(input) {
   logit_variation = predict(variation.model$gam, pred.data)
   pred.data$variation = rbinom(n=1, size = 1, prob = expit(logit_engagement))
   
+  zerologpresteps.model = readRDS(file = paste("zerologpresteps_cohort_",cohort,".RDS", sep = ""))
+  logit_presteps = predict(zerologpresteps.model$gam, pred.data)
+  nosteps = rbinom(n=1, size = 1, prob = expit(logit_presteps))
   logpresteps.model = readRDS(file = paste("logpresteps_cohort_",cohort,".RDS", sep = ""))
-  pred.data$logpresteps = predict(variation.model$gam, pred.data) + rnorm(1, mean = 0, sd = sigma(variation.model$lme))
+  pos_reward = predict(logpresteps.model$gam, pred.data) + rnorm(1, mean = 0, sd = sigma(logpresteps.model$lme))
+  pred.data$logpresteps = nosteps * log(0.5) + (1-nosteps) * pos_reward
   
-  logpresteps.model = readRDS(file = paste("sqrttotalsteps_cohort_",cohort,".RDS", sep = ""))
-  pred.data$logpresteps = predict(logpresteps.model$gam, pred.data) + rnorm(1, mean = 0, sd = sigma(logpresteps.model$lme))
-  
-  sqrttotalsteps.model = readRDS(file = paste("logpresteps_cohort_",cohort,".RDS", sep = ""))
+  sqrttotalsteps.model = readRDS(file = paste("sqrttotalsteps_cohort_",cohort,".RDS", sep = ""))
   if(pred.data$decision.time == 1) {
     pred.data$sqrt.totalsteps = predict(sqrttotalsteps.model$gam, pred.data) + rnorm(1, mean = 0, sd = sigma(sqrttotalsteps.model$lme))
   }
@@ -111,9 +132,7 @@ generate_reward_state <- function(input) {
   output
 }
 
-pred.data = analysis.data[14941,]
-reward = 1
-user_avail = 1
+
 
 output = list("reward" = reward,
               "state" = c(pred.data$id, pred.data$day, pred.data$decision.time, pred.data$dosage, 
