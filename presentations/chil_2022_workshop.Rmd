@@ -162,24 +162,22 @@ __HeartSteps__: push or do not push tailed suggestion
 
 ## Synthetic HeartSteps Data
 
-```{r, echo = TRUE}
-HS_MRT_data = read.csv("data/HS_MRT_example.csv")
+```{r, echo = F}
+HS_MRT_data = read.csv("data/HS_MRT_example_v2.csv")
 knitr::kable(head(HS_MRT_data[1:5, 1:6]), format="simple",
              digits = rep(2,6), booktabs=TRUE)
 ```
 
 ## Synthetic HeartSteps Data
 
-```{r, echo = TRUE}
-HS_MRT_data = read.csv("data/HS_MRT_example.csv")
+```{r, echo = F}
 knitr::kable(head(HS_MRT_data[1:5, c(3,7:10)]), format="simple",
              digits = rep(2,6), booktabs=TRUE)
 ```
 
 ## Synthetic HeartSteps Data
 
-```{r, echo = TRUE}
-HS_MRT_data = read.csv("data/HS_MRT_example.csv")
+```{r, echo = F}
 knitr::kable(head(HS_MRT_data[1:5, c(3, 11:14)]), format="simple",
              digits = rep(2,6), booktabs=TRUE)
 ```
@@ -196,5 +194,14 @@ knitr::kable(head(HS_MRT_data[1:5, c(3, 11:14)]), format="simple",
 
 ## Questions to Improve Synthetic HeartSteps Activity Suggestions
 
-- Do tailored activity suggestions ahve an effect at all?
-- 
+* Do tailored activity suggestions ahve an effect at all?
+* Do less and more burdensome activity suggestions work equally well?
+* Does the effect of suggestions change of time?
+* When should we send suggestions for optimal effect?
+
+## Micro-randomized trial
+
+* How to justify the experimtntal trial costs in clinical research setting
+  + Address a question that can be stated across disciplinary boundaries and be able to provide guarantees
+  + Design trial so that a variety of further interesting questions can be answered
+* {\bf Large number of stakeholders with differing data needs/interests}
