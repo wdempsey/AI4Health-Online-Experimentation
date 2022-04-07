@@ -80,22 +80,22 @@ $$
 
 ## Micro-randomized trial elements:
 
-1. Decision points, $t$ (Times at which an intervention can be provided)
-  - Regular intervals in time (e.g., every 10 minutes)
-  - At user demand
-- __HeartSteps__: Approximately every 2-2.5 hours at user-specific times labeled as monring, mid-day, mid-afternoon, early evening, after dinner
+* Decision points, $t$ (Times at which an intervention can be provided)
+  + Regular intervals in time (e.g., every 10 minutes)
+  + At user demand
+* **HeartSteps**: Approximately every 2-2.5 hours at user-specific times labeled as monring, mid-day, mid-afternoon, early evening, after dinner
 
 ## Micro-randomized trial elements:{.columns-2}
 
 \begin{columns}
 \begin{column}{0.48\textwidth}
 
-- Treatments $A_t$:
+\begin{itemize}
+\item Treatments $A_t$:
+\item Types of treatments that can be provided at a decision point, $t$
+\item {\bf HeartSteps}: tailored activity suggestion (yes/no)
 
-- Types of treatments that can be provided at a decision point, $t$
-
-- {\bf HeartSteps}: tailored activity suggestion (yes/no)
-
+\end{itemize}
 
 \end{column}
 \begin{column}{0.48\textwidth}
@@ -108,11 +108,10 @@ knitr::include_graphics("figs/act_suggestion_small.PNG")
 
 ## Micro-randomized trial elements
 
-4. Randomization:
+* Randomization:
   + A stochastic strategy for selecting among the treatments at each decision point
   + The probabilistic distribution of $A_t$
-
-__HeartSteps__: push or do not push tailed suggestion
+* **HeartSteps**: push or do not push tailed suggestion
   - $P(A_t = 1) = 0.6$ (push)
   - $P(A_t = 0) = 0.4$ (do not push)
 
@@ -204,4 +203,53 @@ knitr::kable(head(HS_MRT_data[1:5, c(3, 11:14)]), format="simple",
 * How to justify the experimtntal trial costs in clinical research setting
   + Address a question that can be stated across disciplinary boundaries and be able to provide guarantees
   + Design trial so that a variety of further interesting questions can be answered
-* {\bf Large number of stakeholders with differing data needs/interests}
+* **Large number of stakeholders with differing data needs/interests**
+
+## Conceptual model: Primary analysis
+
+* Data analysts want to fit a series of increasingly complex models:
+* **Primary analysis**
+$$
+Y_{t+1} `\sim' \underbrace{\alpha_0 + \alpha_1^\top Z_t}_{\text{reduce noise}} + \underbrace{\beta_0 A_t}_{\text{causal main effect}}
+$$
+* $Z_t$: summary formed from $t$ and past/present observations
+  + `Control Variables'
+* $\beta_0$: is the effect, marginal over all observed and unobserved variables, of the activity suggestion on subsequent activity
+
+## Conceptual model: Secondary analysis
+
+* **Secondary analysis**
+$$
+Y_{t+1} `\sim' \underbrace{\alpha_0 + \alpha_1^\top Z_t}_{\text{reduce noise}} + \underbrace{\beta_0 A_t + \beta_1 A_t S_t}_{\text{causal moderation effect}}
+$$
+* $Z_t$: control variables
+* $S_t$: potential moderator (e.g., current level of engagement)
+* $\beta_0 + \beta_1$: is the effect when an individual is engaged ($S_t = 1$), marginal over all observed and unobserved variables, of the activity suggestion on subsequent activity.
+
+## Scientific goal
+
+* Analytic methods that are consistent with the scientific understanding of the meaning of $\beta$ coefficients
+  + Make the scientist developing the intervention behavioral scientist
+* Analytic methods that require minimal additional assumptions
+  + Don't require strong modeling assumptions that may not hold
+* Causal inference challenges:
+  + Time-varying treatment $(A_t, t=1,\ldots,T)$
+  + `Independent' variables: $Z_t, S_t, I_t$ all may be affected by prior treatment
+* Robustly facilitate noise reduction via use of controls,~$Z_t$.
+
+## Causal effects
+
+* Use potential outcomes to define the effect
+* The effects we define are *causal excursions*
+  + Contrasts at a given time, averaging over prior randomizations
+  + A 1-step excursion (send suggestion vs don't send suggestion) from the underlying stochastic policy.
+
+## Potential outcomes
+
+* $\bar A_t = (\bar A_1, \bar A_2,\ldots, \bar A_t)$
+  + $\bar a_t$: realizations of treatments
+* $Y_{t+1} (\bar a_{t-1})$ is the potential proximal outcome
+* $I_{t+1} (\bar a_{t-1})$ is the potential *available for treatment* indicator
+* $H_{t} (\bar a_{t-1})$ is the potential history vector
+  + $S_t (\bar a_{t-1})$ is a vector of features from the potential history.
+
