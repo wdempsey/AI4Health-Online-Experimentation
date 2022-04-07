@@ -7,8 +7,8 @@ output:
 ---
 
 ```{r setup, include = FALSE}
-library(reticulate)
-use_python("/usr/bin/python2.7")
+# library(reticulate)
+# use_python("/usr/bin/python2.7")
 knitr::opts_chunk$set(echo = FALSE)
 library(knitr)
 library(kableExtra)
@@ -67,9 +67,83 @@ knitr::include_graphics("figs/activity_suggestion.png")
 - Randomization may use online predictions as well as reinforcement learning
 - Probabilistic budgets on number of treatment pushes to manage treatment burden
 
+## Data from wearable devices
+
+- On each individual we observe the sequence
+$$
+(O_1, A_1, Y_2, O_2, A_2, Y_3, \ldots, O_t, A_t, Y_{t+1}, \ldots, O_T, A_T, Y_{T+1})
+$$
+- $t$: Decision point
+- $O_t$: Observations at $t^{\text{th}}$ decision point
+- $A_t$: treatment push at $t^{\text{th}}$ decision point
+- $Y_{t+1}$: Proximal outcome (e.g., reward, utility, cost)
+
+## Micro-randomized trial elements:
+
+1. Decision points, $t$ (Times at which an intervention can be provided)
+  - Regular intervals in time (e.g., every 10 minutes)
+  - At user demand
+- __HeartSteps__: Approximately every 2-2.5 hours at user-specific times labeled as monring, mid-day, mid-afternoon, early evening, after dinner
+
+## Micro-randomized trial elements:{.columns-2}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+
+- Treatments $A_t$:
+
+- Types of treatments that can be provided at a decision point, $t$
+
+- {\bf HeartSteps}: tailored activity suggestion (yes/no)
 
 
-## Part 1b: Investigating mHealth randomized trial data
+\end{column}
+\begin{column}{0.48\textwidth}
+```{r activityfig, echo=FALSE, fig.cap="Activity Suggestion Example", out.width = '75%'}
+knitr::include_graphics("figs/act_suggestion_small.PNG")
+```
+\end{column}
+\end{columns}
+
+
+## Micro-randomized trial elements
+
+4. Randomization:
+  + A stochastic strategy for selecting among the treatments at each decision point
+  + The probabilistic distribution of $A_t$
+
+__HeartSteps__: push or do not push tailed suggestion
+  - $P(A_t = 1) = 0.6$ (push)
+  - $P(A_t = 0) = 0.4$ (do not push)
+
+## Micro-randomized trial elements:
+
+5. Proximal outcome: $Y_{t+1}$
+  + Mediators that are thought to be critical to achieving a longer term clinical health outcome such as improved heart health
+- __HeartSteps__ Activity (step count) over next 30 minutes
+- Question: how can we use AI to determine the length of time over which the proximal outcome is measured?
+
+## Availability
+
+* Interventions, $A_t$, can only be delivered at a decision point if the decision point is _available_ for the user
+  + $O_t$ includes $I_t = 1$ if available, and $I_t = 0$ if not
+* Availability is known pre-decision point, i.e., pre-treatment
+* Availability is not adherence, nor is it the same as interruptibility, receptivity
+
+## Why Micro-randomization?
+
+* Randomization (+ representative sample) is a gold standard in providing data to assess causal effects
+
+* Sequential randomizations will enhance replicability of data analyses (decision rule development)
+
+
+## Experimentation for continuous improvement
+
+- "Iterative nature of experimentation" (RA Fisher & George Box)
+- " At Google, experimentation is practically a mantra; we evaluate almost every change that potentially affects what our users experience." (4 Google scientists)
+- "Online experiments are widely used to compare specific design alternatives, but they can also be used to produce generalizable knowledge and inform strategic decision making. Doing so often requires sophisticated experimental designs, iterative refinement, and careful logging and analysis" (3 Facebook scientists)
+
+## Synthetic HeartSteps Data
 
 - An MRT simulator based on Heartsteps V2 has been built in R and is available [here](https://drive.google.com/drive/folders/1rhCWugawTjEnwmagrOPwxNssrgIsnypT?usp=sharing)
 - _ID_: Numeric id taking values between 1-110
@@ -78,13 +152,13 @@ knitr::include_graphics("figs/activity_suggestion.png")
 - _Dosage/burden_: Pre-defined function of past pushes (walking + anti-sedentary messages)
 - _Engagement Indicator_: Binary indicator of whether the number of screens encountered in app from prior day from 12am to 11:59pm is greater than the 40% quantile of the screens collected.
 
-## Investigating mHealth randomized trial data
+## Synthetic HeartSteps Data
 
 - _Temperature_: Temperature (In Celsius degree) at the current location
 - _Location_: 1 if at a location other than home or work; 0 if at home or work (pre-specified)
 - _Variation Indicator_: Indicator of higher recent variation in step counts than median long-term variation
 - _Pre-treatment Steps_: Log-transformed steps 30 mins prior to the current decision time from the tracker; $\log(y+0.5)$.
-- _Square root of steps yesterday_: The square root of step counts from the tracker collected from 12am to 11:59 pm 
+- _Square root of steps yesterday_: The square root of step counts from the tracker collected from 12am to 11:59 pm
 
 ## Synthetic HeartSteps Data
 
@@ -110,3 +184,17 @@ knitr::kable(head(HS_MRT_data[1:5, c(3, 11:14)]), format="simple",
              digits = rep(2,6), booktabs=TRUE)
 ```
 
+## Primary Analysis of MRT Data:
+
+* Why consider conducting simple, interpretable, primary analyses?
+  + In clinical and commercial settings
+* Understand why causal excursion effects are useful for continual learning
+
+## Heartsteps
+
+* Goal: 
+
+## Questions to Improve Synthetic HeartSteps Activity Suggestions
+
+- Do tailored activity suggestions ahve an effect at all?
+- 
