@@ -4,6 +4,7 @@ author: "Walter Dempsey"
 date: "04/08/2022"
 output:
   beamer_presentation: default
+urlcolor: blue
 ---
 
 ```{r setup, include = FALSE}
@@ -12,6 +13,17 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 library(knitr)
 library(kableExtra)
+library(geepack)
+library(readr)
+library(ggplot2)
+library(broom)
+library(reshape2)
+library(Rcpp)
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  paste0("\n \\", "footnotesize","\n\n", x, "\n\n \\normalsize")
+})
 ```
 
 ## AI 4 Mobile Health
@@ -59,7 +71,15 @@ knitr::include_graphics("figs/activity_suggestion.png")
 
 ## HeartSteps 
 
-- 3 iterative studies
+* Three iterative studies
+  + 42 day micro-randomized study 
+    - Sedentary individuals
+  + 90 day + 270 micro-randomized study 
+    - Personalized randomization scheme
+    - People with Stage 1 hypertension
+* Synthetic HeartSteps
+  + Build from the 90 day MRT study.
+  + Randomizations set similar to MRT for illustrative purposes.
 
 ## Micro-randomized trial
 
@@ -187,10 +207,6 @@ knitr::kable(head(HS_MRT_data[1:5, c(3, 11:14)]), format="simple",
   + In clinical and commercial settings
 * Understand why causal excursion effects are useful for continual learning
 
-## Heartsteps
-
-* Goal: 
-
 ## Questions to Improve Synthetic HeartSteps Activity Suggestions
 
 * Do tailored activity suggestions ahve an effect at all?
@@ -253,3 +269,421 @@ $$
 * $H_{t} (\bar a_{t-1})$ is the potential history vector
   + $S_t (\bar a_{t-1})$ is a vector of features from the potential history.
 
+## Fundamental problem of causal inference
+
+* Individual level causal effect (binary $A_t$):
+
+$$
+Y_{t+1} (\textcolor{blue}{\bar A_{t-1}}, \textcolor{red}{1}) -
+Y_{t+1} (\textcolor{blue}{\bar A_{t-1}}, \textcolor{red}{0})
+$$
+
+* \textcolor{blue}{Averaging over underlying stochastic policy}
+* \textcolor{red}{Excursion contrast of treat $A_t =1$ vs don't treat $A_t = 0$}
+* Fundamental problem:
+  + Data alone cannot be used to predict or estimate the effect
+
+## Solution to the fundamental problem of causal inference
+
+* Instead of estimating/predicting individual level causal effects,
+$$
+Y_{t+1} (\bar A_{t-1}, 1) - Y_{t+1} (\bar A_{t-1}, 0)
+$$
+estimate expectations or conditional expectations of these effects:
+$$
+E\left[ Y_{t+1} (\bar A_{t-1}, 1) - Y_{t+1} (\bar A_{t-1}, 0) \right]
+$$
+* See [here](https://cdn1.sph.harvard.edu/wp-content/uploads/sites/1268/2020/11/ciwhatif_hernanrobins_23nov20.pdf) for a great resource on causal inference (especially observational studies)
+
+## Marginal & Causal effects
+
+* The **excursion effect** at decision point $t$:
+$$
+E\left[ Y_{t+1} (\bar A_{t-1}, 1) - Y_{t+1} (\bar A_{t-1}, 0) \mid I_t (\bar A_{t-1}) = 1, 
+\textcolor{blue}{S_t (\bar A_{t-1})} \right]
+$$
+
+* Effect is conditional on availability; only concerns the subpopulation of users available at decision time $t$
+
+* \textcolor{blue}{Effect is marginal over any $Y_s, s \leq t$ and $A_s, s < t$ not in $S_{t} (\bar A_{t-1})$}
+
+## Switching from potential outcomes to observables:
+
+* The **excursion effect** can be expressed in terms of conditional expectations on *observable data* (under some assumptions):
+$$
+E\left[ Y_{t+1} - Y_{t+1} (\bar A_{t-1}, 0) \mid I_t (\bar A_{t-1}) = 1, 
+\textcolor{blue}{S_t^\top \beta} \right] = \textcolor{blue}{S_t^\top \beta}
+$$
+
+* $H_t$:
+* $S_t$ is a vector of data summaries and time~$t$
+* $I_t$ indicator of availability
+* \textcolor{blue}{Treatment effect model}: we aim to conduct inference about $\beta$
+
+## An analysis method: Weighted and centered least squares estimation
+
+* Simple, interpretable, method for complex data
+* Enables unbiased inference for a causal, overall, treatment effect (the $\beta$'s)
+* Inference for treatment effect is not biased by how we use controls, $Z_t$, to reduce the noise variance in $Y_{t+1}$
+
+## Steps in estimation
+
+* Estimate probabilities: $\tilde p_t (s) \in (0,1)$
+* Form weights
+$$
+W_t = \left( \frac{\tilde p_t (S_t)}{p_t (H_t)} \right)^{A_t}
+\left( \frac{1-\tilde p_t (S_t)}{1-p_t (H_t)} \right)^{1-A_t}
+$$
+* Center treatments: $A_t \to A_t - \tilde p_t (S_t)$
+* Minimize
+$$
+E_n \left[ \sum_{t=1}^T \left( Y_{t+1} - Z_t^\top \alpha - (A_t - \tilde p_t (S_t)) S_t^\top \beta \right)^2 I_t W_t \right]
+$$
+where $E_n$ is the empirical distribution over individuals.
+
+## Key points
+
+
+* We **do not** need to assume
+$$
+E[ Y_{t+1} | A_t, I_t = 1, Z_t] = Z_t^\top \alpha + (A_t - \tilde p_t (S_t)) S_t^\top \beta
+$$
+* This would assume the conditional mean of $Y_{t+1}$ is correctly specified which is a much stronger assumption!
+* We only assume the **treatment effect** is correctly specified
+$$
+E\left[ Y_{t+1} - Y_{t+1} (\bar A_{t-1}, 0) \mid I_t (\bar A_{t-1}) = 1, 
+\textcolor{blue}{S_t^\top \beta} \right] = S_t^\top \beta_0
+$$
+* Then under moment conditions, $\hat \beta \to \beta_0$ 
+  
+## Gains from randomization
+
+* Causal inference for a marginal treatment effect
+* Inference on treatment effect is robust to working model:
+$$
+E[ Y_{t+1}  | I_t = 1, H_t ] \approx Z_t^\top \alpha
+$$
+
+* $Z_t \subseteq H_t$
+* Contrast to literature on partially linear, single index models and varying coefficient models
+
+## Choice of weights
+
+* Choice of $\tilde p_t (S_t)$ determines the marginalization over time under model misspecification of treatment effect
+
+* Example: $S_t = 1$, $\tilde p_t (S_t) = \tilde p$. Then $\hat \beta$ is an estimator of
+
+$$
+\frac{\sum_{t=1}^T E[ I_t ] \beta_t }{\sum_{t=1}^T E[ I_t ]}
+$$
+where $\beta(t)$ is the causal excursion effect at decision point $t$
+
+
+## Improving the WCLS
+
+* Most often $S_t \subset Z_t$.  
+* In clinical trials, when estimating the average treatment effect the control variables are **empirically centered** and interacted with treatment.
+* Simple case: $(X,A,Y)$ then 
+$$
+Y \sim Z + A + Z A, Z = X - \bar X
+$$
+via a GEE will guarantee to improve efficiency for simple RCTs.
+* Efficiency is critical in small sample size settings 
+* **Can we do the same thing for our setting?**
+
+## Revisiting the WCLS
+
+* Let $Z_t = (S_t, X_t)$ then maybe we can add in these extra terms?
+$$
+E_n \left[ \sum_{t=1}^T \left( Y_{t+1} - Z_t^\top \alpha - (A_t - \tilde p_t (S_t)) (S_t^\top \beta \textcolor{blue}{+ X_t^\top \tilde \beta}) \right)^2 I_t W_t \right]
+$$
+
+* **PROBLEM**: Unlike the control variables $Z_t^\top \alpha$ they are not orthogonal to centered treatment!
+$$
+E[ Z_t^\top \alpha (A_t - \tilde p_t (S_t)) W_t ] = 0
+$$
+
+## Revisiting the WCLS
+
+Alternative: *centering* like in traditional RCTs
+\begin{align*}
+E_n \bigg[ \sum_{t=1}^T I_t W_t &\bigg( Y_{t+1} - Z_t^\top \alpha - (A_t - \tilde p_t (S_t)) S_t^\top \beta \\
+- &(A_t - \tilde p_t (S_t)) \textcolor{blue}{+ (X_t - \mu_t(\theta))^\top \tilde \beta}) \bigg)^2  \bigg]
+\end{align*}
+
+* How do we choose $\mu_t (\theta)$:
+$$
+E_n \left[ \sum_{t=1}^T W_t I_t (A_t - \tilde p_t (S_t)) (X_t - \mu_t(\theta))^\top S_t \right] = 0 
+$$
+* Simple solution: set $\mu_t (\theta) = S_t^\top \theta$
+
+
+
+## Synthetic HeartSteps
+
+```{r hs_traj, echo=FALSE, fig.cap="Event Planning Example", out.width = '100%'}
+knitr::include_graphics("figs/HeartSteps_Trajectory.PNG")
+```
+
+## Synthetic HeartSteps
+
+One each of the $n=40$ participants:
+
+* Activity suggestion, $A_t$:
+  + Provide a tailored activity suggestion with probability 0.5
+  + Do nothing (probability $0.5$)
+* $5$ times per day $\cdot 90$ days = $450$
+
+## Synthetic HeartSteps: Build centering models
+
+```{r warning=FALSE, echo = TRUE}
+HS_MRT_data$MRT_action_c = HS_MRT_data$MRT_action - 
+  HS_MRT_data$MRT_probs
+
+center_steps = lm(logpresteps ~ day,data = HS_MRT_data)
+HS_MRT_data$logpresteps_c = HS_MRT_data$logpresteps - 
+  center_steps$fitted.values
+
+center_engage = lm(engagement ~ day,data = HS_MRT_data)
+HS_MRT_data$engagement_c = HS_MRT_data$engagement - 
+  center_engage$fitted.values
+
+center_dose = lm(dosage ~ day,data = HS_MRT_data)
+HS_MRT_data$dosage_c = HS_MRT_data$dosage - 
+  center_dose$fitted.values
+```
+
+## Synthetic Heartsteps: 
+
+```{r warning=FALSE, echo = FALSE, cache = TRUE}
+# For model 3: add dosage as a 3rd moderator in our method.
+fit_wcls = geeglm(MRT_reward ~ MRT_action_c*day,
+                 data = HS_MRT_data,
+                 weights = MRT_avails, 
+                 id =id , 
+                 scale.fix = T) 
+
+knitr::kable(tidy(fit_wcls), 
+             digits = c(2,2,4,2,3))
+```
+
+## Synthetic Heartsteps: 
+
+```{r warning=FALSE, echo = FALSE, cache = TRUE}
+# For model 3: add dosage as a 3rd moderator in our method.
+fit_cwcls = geeglm(MRT_reward ~ MRT_action_c*(day + logpresteps_c + engagement_c + dosage_c),
+                 data = HS_MRT_data,
+                 weights = MRT_avails, 
+                 id =id , 
+                 scale.fix = T) 
+knitr::kable(tidy(fit_cwcls), 
+             digits = c(2,2,4,2,3))
+```
+
+## Synthetic HeartSteps:
+
+```{r, echo = FALSE}
+
+plot_moderator = function(fit_wcls, fit_cwcls, moderator= "day"){
+  var_wcls = matrix(0, nrow = 2, ncol = 2)
+  coeff_wcls = coef(fit_wcls)[c("MRT_action_c",paste0("MRT_action_c:", moderator))]
+  
+  vcov_m = vcov(fit_wcls)
+  
+  var_wcls[1,1] = vcov_m["MRT_action_c","MRT_action_c"]
+  var_wcls[1,2] = vcov_m["MRT_action_c",paste0("MRT_action_c:", moderator)]
+  var_wcls[2,1] = var_wcls[1,2]
+  var_wcls[2,2] = vcov_m[paste0("MRT_action_c:", moderator),paste0("MRT_action_c:", moderator)]
+  
+  var_cwcls = matrix(0, nrow = 2, ncol = 2)
+  coeff_cwcls = coef(fit_cwcls)[c("MRT_action_c",paste0("MRT_action_c:", moderator))]
+  
+  vcov_m = vcov(fit_cwcls)
+  
+  var_cwcls[1,1] = vcov_m["MRT_action_c","MRT_action_c"]
+  var_cwcls[1,2] = vcov_m["MRT_action_c",paste0("MRT_action_c:", moderator)]
+  var_cwcls[2,1] = var_cwcls[1,2]
+  var_cwcls[2,2] = vcov_m[paste0("MRT_action_c:", moderator),paste0("MRT_action_c:", moderator)]
+  
+  
+  
+  data = as.data.frame(matrix(NA, nrow = 200, ncol = 5))
+  colnames(data) = c("x","y","lower","upper","Method")
+  data$x = rep(1:100,2)
+  data$Method = rep(c("Centering-WCLS","WCLS"),each = 100)
+  
+  data$y[1:100] = coeff_cwcls[1]+ coeff_cwcls[2] *data$x[1:100] 
+  data$y[101:200] = coeff_wcls[1]+ coeff_wcls[2]*data$x[101:200]
+  
+  
+  
+  ########## part 1
+  var_cor_cwcls = var_cwcls
+  
+  calculate_se = function(x) sqrt(t(c(1,x))%*%var_cor_cwcls%*%c(1,x))
+  
+  se_cor = sapply(data$x[1:100],FUN=calculate_se)
+  
+  t_quantile <- qt(0.975, 40-length(fit_cwcls[["coefficients"]]))
+  
+  data$lower[1:100] = data$y[1:100] - t_quantile*se_cor
+  data$upper[1:100] = data$y[1:100] + t_quantile*se_cor
+  
+  
+  ####### part2
+  
+  var_cor_wcls = var_wcls
+  
+  calculate_se = function(x) sqrt(t(c(1,x))%*%var_cor_wcls%*%c(1,x))
+  
+  se_cor = sapply(data$x[101:200],FUN=calculate_se)
+  
+  
+  t_quantile <- qt(0.975, 40-length(fit_wcls[["coefficients"]]))
+  
+  data$lower[101:200] = data$y[101:200] - t_quantile*se_cor
+  data$upper[101:200] = data$y[101:200] + t_quantile*se_cor
+  
+  
+  
+  p<-ggplot(data=data, aes(x=x, y=y, colour=Method)) + 
+    geom_line()+
+    geom_ribbon(aes(ymin=lower, ymax=upper), linetype=2, alpha=0.1)+
+    xlab(moderator)+
+    ylab("MRT Reward change")+
+    theme_bw()+
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank()) +
+    geom_hline(yintercept =0, linetype=2)+
+    theme(axis.text=element_text(size=12),
+          axis.title=element_text(size=14))
+  p
+  
+}
+
+plot_moderator(fit_wcls, fit_cwcls, moderator= "day")
+```
+
+## Synthetic Heartsteps: 
+
+
+```{r warning=FALSE, echo = FALSE}
+center_otherlocation = lm(other.location ~ day,data = HS_MRT_data)
+HS_MRT_data$other.loc_c = HS_MRT_data$other.location - 
+  center_otherlocation$fitted.values
+```
+
+```{r warning=FALSE, echo = FALSE, cache = TRUE}
+# For model 3: add dosage as a 3rd moderator in our method.
+fit_wcls_mod = geeglm(MRT_reward ~ MRT_action_c*(day + logpresteps_c + engagement_c + dosage_c + other.loc_c),
+                 data = HS_MRT_data,
+                 weights = MRT_avails, 
+                 id =id , 
+                 scale.fix = T) 
+knitr::kable(tidy(fit_wcls_mod), 
+             digits = c(2,2,4,2,3))
+```
+
+## Initial conclusions
+
+* The data indicates a causal effect of activity suggestions on step count in the succeeding 30 minutes 
+  + The effect is positive for the first 20 days and then becomes negative
+  + Steps in prior 30 minutes negatively impacts the effect of the suggestion
+  + Engagement strongly positively impacts the effect of the suggestion
+  + Being at home/work has a strong positive impact on the effect of the suggestion
+  + Dosage does not have a strong effect
+* Updating the stochastic policy to depend on prior steps, engagement, and other location may improve proximal outcomes further
+
+## Next Steps for intervention development
+
+* We have answered the following questions
+  + Is the intervention effective, on average?  Does the average effectiveness vary over time in study?
+  + Does the effectiveness interact with time-varying contexts?
+* Next question
+
+\begin{center}
+How do we use this knowledge to improve the intervention?
+\end{center}
+
+* Use the analysis result to form a **warm-start policy** for online reinforcement-learning algorithm
+* Include the identified contexts as state information in the RL algorithm
+
+## Warm-Start Policy + Bandit Algorithms
+
+* A simple idea: use global fit to form data-informed prior for action selection strategy within a Thompson sampling algorithm
+* Model mean *reward* (proximal outcome) $E[R_{t+1} | S_t = s, A_ t =a] = r(s,a)$
+  + Observe context features, $s$
+  + Action selection strategy selects treatment, $a$
+  + Observe reward,~$R$
+  + *Learning algorithm updates parameters in mean/distribution of reward
+  + Repeat!
+  
+## Linear, ``Thompson Smapling'' Bandit
+
+* Gaussian linear model with mean reward
+$$
+E[ R_{t+1} | S_t = s, A_t = a] = r(s,a) = \eta^\top f(s,a)
+$$
+* Initial $\eta$ parameters in mean reward with a prior distribution (*warm-start!*)
+* Update posterior distribution of $\eta$ given $(S_t, A_t, R_{t+1})$
+  + In this simple case, posterior is Gaussian
+* Select next treatment $a$ with probability equal to posterior probability that treatment $a$ has highest mean reward.
+
+## Synthetic HeartSteps V2
+
+```{r hs_trajv2, echo=FALSE, fig.cap="Event Planning Example", out.width = '100%'}
+knitr::include_graphics("figs/HeartSteps_Trajectory.PNG")
+```
+
+## Warm-Start Policy
+
+```{r warning=FALSE, echo = FALSE, cache = TRUE}
+# For model 3: add dosage as a 3rd moderator in our method.
+fit_lm = lm(MRT_reward ~ MRT_action_c*(day + logpresteps_c + engagement_c + other.loc_c),
+                 data = HS_MRT_data, weights = MRT_avails) 
+knitr::kable(tidy(fit_lm), 
+             digits = c(2,2,4,2,3))
+```
+
+## Assessing individual-level heterogeneity in effects
+
+```{r warning=FALSE, echo = FALSE, cache = TRUE}
+unique_ids = unique(HS_MRT_data$id)
+individual_coefs = matrix(nrow = length(unique_ids), ncol = 10)
+for (i in 1:length(unique_ids)) {
+  current_id = unique_ids[i]
+  fit_lm = lm(MRT_reward ~ MRT_action_c*(day + logpresteps_c + engagement_c + other.loc_c),
+              data = subset(HS_MRT_data, id == current_id), weights = MRT_avails) 
+  individual_coefs[i,] = fit_lm$coefficients
+}
+individual_coefs = data.frame(individual_coefs[,c(2,7,8,9,10)])
+names(individual_coefs) = c("A_t", "A_t:day", "A_t:Step", "A_t:Engage", "A_t:Location")
+data_mod <- melt(individual_coefs, measure.vars=c("A_t", "A_t:day", "A_t:Step", "A_t:Engage", "A_t:Location"))
+ggplot(data = data_mod, aes(x=variable, y=value)) + geom_boxplot(aes(fill=variable)) + theme(legend.position="none", axis.title.x = element_blank())
+```
+
+## Summary
+
+* Conceptual model (domain science)
+
+* \textcolor{blue}{Micro-randomized trial}
+
+* \textcolor{blue}{Causal excursion effect and exploratory data analysis}
+
+* Improved treatment policy
+
+* Confirmatory Trial
+
+## Additional resources
+
+* Centered and weighted least squares [Boruvka et al., 2018]
+* Delayed effect [Boruvka et al. 2018, Qian et al., 2020]
+* Stratified MRT [Dempsey et al. 2020]
+* Excursion effect with binary outcome [Qian et al., 2020]
+* [Sample size calculator (continuous)](https://statisticalreinforcementlearninglab.shinyapps.io/mrt_ss_continuous/)
+* [Sample size calculator (binary)](https://tqian.shinyapps.io/mrt_ss_binary/)
+* Excursion effect with cluster-level heterogeneity [Dempsey et al. 2021]
+* Increasing efficiency of causal excursion effect estimation via orthogonalization  [Dempsey et al. 2022]
