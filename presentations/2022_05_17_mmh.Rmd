@@ -680,32 +680,19 @@ ggplot(data = data_mod, aes(x=variable, y=value)) + geom_boxplot(aes(fill=variab
 
 # Debiased Machine Learning
 
-## Debiased Machine Learning: Basics
-
-* Use Neyman orthogonal scores for likelihood and other M-estimation problems
-* If score function $\phi$ did not satisfy 
-* High-dimensional linear regression
-
-\begin{aligned}
-Y &= D \theta_0+ X'\beta_0 + U, \quad E_P [ U(X', D)' ] = 0, \\
-D &= X' \gamma_0 + V, \quad E_P[ V X] = 0
-\end{aligned}
-
-## Neyman othrogonal score
-
-$$
-
-$$
-
 ## DML for ATE
 
 1. Divide up the data into $Q$ evenly sized folds
-2. [R-learner] Fit $\hat m = E[Y | X]$ and $\hat e = E[A | X] $ with cross-fitting over the Q folds tuned for optimal predictive accuracy
-2. [DR-learner] Fit $\hat m_a = E[ Y | X, A=a]$ and $\hat e = E[A | X]$
+2. Fit $\hat m_a = E[ Y | X, A=a]$ and $\hat e = E[A | X]$
+3. Use $\hat m_a$ and $\hat e$ to define score functions:
+
+$$
+\hat m(X, 1) - \hat m(X,0) + \frac{A (Y - \hat m(X,1))}{\hat e (X)} - \frac{(1-A)(Y - \hat m(X,0))}{1-\hat e(X)} - \theta
+$$
 
 ## DML + MRT
 
-```{r, cache = TRUE}
+```{r, cache = TRUE, echo = TRUE}
 flds <- createFolds(unique(HS_MRT_data$id), k = 5, list = TRUE, returnTrain = FALSE)
 final_MRT_data = rep(0,0)
 
@@ -714,7 +701,7 @@ for(folds in 1:5) {
   test.set = HS_MRT_data[is.element(HS_MRT_data$id,flds[[folds]]),]
   
   HS_MRT_train = train(MRT_reward ~ .,
-                       data = train.set, 
+                       data = subset(train.set, MRT_avails == 1), 
                        method = "gbm", 
                        trControl = trainControl(method = "cv"))
   
@@ -734,12 +721,12 @@ for(folds in 1:5) {
 
 ## DML + MRT
 
-```{r, cache = TRUE}
+```{r, warnings = FALSE, cache = TRUE}
 fit_dml = geeglm(MRT_reward_minus_controls ~ MRT_action*day, 
                  data = final_MRT_data, weights = MRT_avails, id = id)
 knitr::kable(summary(fit_dml)$coefficients, format="simple", booktabs=TRUE)
 
-fit_std = geeglm(MRT_reward ~ MRT_action_c*day + logpresteps + engagement + other.location,
+fit_std = geeglm(MRT_reward ~ MRT_action_c*day + logpresteps,
                  data = HS_MRT_data, weights = MRT_avails, id = id) 
 knitr::kable(summary(fit_std)$coefficients, format="simple", booktabs=TRUE)
 ```
